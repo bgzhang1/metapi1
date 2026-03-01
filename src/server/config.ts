@@ -53,4 +53,10 @@ export const config = {
     balanceWeight: parseNumber(process.env.BALANCE_WEIGHT, 0.3),
     usageWeight: parseNumber(process.env.USAGE_WEIGHT, 0.3),
   },
+  normalizeLlm: {
+    enabled: parseBoolean(process.env.NORMALIZE_LLM_ENABLED, false),
+    baseUrl: process.env.NORMALIZE_LLM_BASE_URL || '',
+    apiKey: process.env.NORMALIZE_LLM_API_KEY || '',
+    model: process.env.NORMALIZE_LLM_MODEL || '',
+  },
 };

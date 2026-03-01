@@ -3,6 +3,7 @@ import { db, schema } from '../db/index.js';
 import { getAdapter } from './platforms/index.js';
 import { ensureDefaultTokenForAccount, getPreferredAccountToken } from './accountTokenService.js';
 import { resolvePlatformUserId } from './accountExtraConfig.js';
+import { getCachedNormalizedName, normalizeModelNamesWithLLM } from './llmNormalizer.js';
 
 const API_TOKEN_DISCOVERY_TIMEOUT_MS = 8_000;
 const MODEL_DISCOVERY_TIMEOUT_MS = 12_000;
@@ -12,21 +13,40 @@ function isSiteDisabled(status?: string | null): boolean {
   return (status || 'active') === 'disabled';
 }
 
+/** Regex-only normalization (synchronous fallback). */
+function regexNormalize(name: string): string {
+  return name.trim().toLowerCase().replace(/(\d)-(\d)/g, '$1.$2');
+}
+
 /**
- * Normalize a model name to a canonical form:
+ * Normalize a model name to a canonical form.
+ *
+ * When an LLM normalizer is configured and has previously normalized this name
+ * the cached result is returned.  Otherwise falls back to the regex rule:
  * - trim whitespace
  * - lowercase
  * - replace hyphens between digits with dots (e.g. kimi-2-5 → kimi-2.5)
  */
 export function normalizeModelName(name: string): string {
-  return name.trim().toLowerCase().replace(/(\d)-(\d)/g, '$1.$2');
+  const cached = getCachedNormalizedName(name);
+  if (cached !== undefined) return cached;
+  return regexNormalize(name);
 }
 
-function normalizeModels(models: string[]): string[] {
+/**
+ * Batch-normalize a list of model names.
+ *
+ * Attempts to use the configured LLM normalizer first.  Any names not covered
+ * by the LLM response fall back to regex normalization.
+ */
+async function normalizeModels(models: string[]): Promise<string[]> {
+  const valid = models.filter((m) => typeof m === 'string' && m.trim().length > 0);
+  if (valid.length === 0) return [];
+
+  const llmMap = await normalizeModelNamesWithLLM(valid);
+
   return Array.from(new Set(
-    models
-      .filter((model) => typeof model === 'string' && model.trim().length > 0)
-      .map(normalizeModelName),
+    valid.map((name) => llmMap.get(name) ?? regexNormalize(name)),
   ));
 }
 
@@ -127,7 +147,7 @@ export async function refreshModelsForAccount(accountId: number) {
     let models: string[] = [];
 
     try {
-      models = normalizeModels(
+      models = await normalizeModels(
         await withTimeout(
           () => adapter.getModels(site.url, token.token, platformUserId),
           MODEL_DISCOVERY_TIMEOUT_MS,
