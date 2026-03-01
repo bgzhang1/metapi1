@@ -32,6 +32,10 @@ interface RuntimeSettingsBody {
   adminIpAllowlist?: string[] | string;
   routingFallbackUnitCost?: number;
   routingWeights?: Partial<RoutingWeights>;
+  normalizeLlmEnabled?: boolean;
+  normalizeLlmBaseUrl?: string;
+  normalizeLlmApiKey?: string;
+  normalizeLlmModel?: string;
 }
 
 const PROXY_TOKEN_PREFIX = 'sk-';
@@ -210,6 +214,25 @@ function applyImportedSettingToRuntime(key: string, value: unknown) {
       config.routingFallbackUnitCost = Math.max(1e-6, n);
       return;
     }
+    case 'normalize_llm_enabled': {
+      config.normalizeLlm.enabled = !!value;
+      return;
+    }
+    case 'normalize_llm_base_url': {
+      if (typeof value !== 'string') return;
+      config.normalizeLlm.baseUrl = value.trim();
+      return;
+    }
+    case 'normalize_llm_api_key': {
+      if (typeof value !== 'string') return;
+      config.normalizeLlm.apiKey = value.trim();
+      return;
+    }
+    case 'normalize_llm_model': {
+      if (typeof value !== 'string') return;
+      config.normalizeLlm.model = value.trim();
+      return;
+    }
     default:
       return;
   }
@@ -238,6 +261,10 @@ function getRuntimeSettingsResponse() {
     notifyCooldownSec: config.notifyCooldownSec,
     adminIpAllowlist: config.adminIpAllowlist,
     proxyTokenMasked: maskSecret(config.proxyToken),
+    normalizeLlmEnabled: config.normalizeLlm.enabled,
+    normalizeLlmBaseUrl: config.normalizeLlm.baseUrl,
+    normalizeLlmApiKeyMasked: maskSecret(config.normalizeLlm.apiKey),
+    normalizeLlmModel: config.normalizeLlm.model,
   };
 }
 
@@ -451,6 +478,41 @@ export async function settingsRoutes(app: FastifyInstance) {
       }
       config.routingFallbackUnitCost = normalized;
       upsertSetting('routing_fallback_unit_cost', normalized);
+    }
+
+    if (body.normalizeLlmEnabled !== undefined) {
+      if (!!body.normalizeLlmEnabled !== config.normalizeLlm.enabled) {
+        changedLabels.push(`LLM 规范化开关（${config.normalizeLlm.enabled ? '开' : '关'} -> ${body.normalizeLlmEnabled ? '开' : '关'}）`);
+      }
+      config.normalizeLlm.enabled = !!body.normalizeLlmEnabled;
+      upsertSetting('normalize_llm_enabled', config.normalizeLlm.enabled);
+    }
+
+    if (body.normalizeLlmBaseUrl !== undefined) {
+      const nextUrl = String(body.normalizeLlmBaseUrl || '').trim();
+      if (nextUrl !== config.normalizeLlm.baseUrl) {
+        changedLabels.push('LLM 规范化 Base URL');
+      }
+      config.normalizeLlm.baseUrl = nextUrl;
+      upsertSetting('normalize_llm_base_url', nextUrl);
+    }
+
+    if (body.normalizeLlmApiKey !== undefined) {
+      const nextKey = String(body.normalizeLlmApiKey || '').trim();
+      if (nextKey !== config.normalizeLlm.apiKey) {
+        changedLabels.push('LLM 规范化 API Key');
+      }
+      config.normalizeLlm.apiKey = nextKey;
+      upsertSetting('normalize_llm_api_key', nextKey);
+    }
+
+    if (body.normalizeLlmModel !== undefined) {
+      const nextModel = String(body.normalizeLlmModel || '').trim();
+      if (nextModel !== config.normalizeLlm.model) {
+        changedLabels.push(`LLM 规范化模型（${config.normalizeLlm.model || '无'} -> ${nextModel || '无'}）`);
+      }
+      config.normalizeLlm.model = nextModel;
+      upsertSetting('normalize_llm_model', nextModel);
     }
 
     if (changedLabels.length > 0) {

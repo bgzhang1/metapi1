@@ -7,8 +7,8 @@ const LLM_NORMALIZE_TIMEOUT_MS = 30_000;
 const cache = new Map<string, string>();
 
 export function isLlmNormalizerConfigured(): boolean {
-  const { baseUrl, apiKey, model } = config.normalizeLlm;
-  return !!(baseUrl && apiKey && model);
+  const { enabled, baseUrl, apiKey, model } = config.normalizeLlm;
+  return !!(enabled && baseUrl && apiKey && model);
 }
 
 /**

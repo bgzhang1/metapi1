@@ -19,6 +19,10 @@ type RuntimeSettings = {
   routingWeights: RoutingWeights;
   proxyTokenMasked?: string;
   adminIpAllowlist?: string[];
+  normalizeLlmEnabled?: boolean;
+  normalizeLlmBaseUrl?: string;
+  normalizeLlmApiKeyMasked?: string;
+  normalizeLlmModel?: string;
 };
 
 const defaultWeights: RoutingWeights = {
@@ -48,6 +52,8 @@ export default function Settings() {
   const [clearingCache, setClearingCache] = useState(false);
   const [clearingUsage, setClearingUsage] = useState(false);
   const [showChangeKey, setShowChangeKey] = useState(false);
+  const [savingNormalize, setSavingNormalize] = useState(false);
+  const [normalizeLlmApiKey, setNormalizeLlmApiKey] = useState('');
   const toast = useToast();
 
   const activeRoutingProfile = useMemo(
@@ -88,6 +94,10 @@ export default function Settings() {
         adminIpAllowlist: Array.isArray(runtimeInfo.adminIpAllowlist)
           ? runtimeInfo.adminIpAllowlist.filter((item: unknown) => typeof item === 'string')
           : [],
+        normalizeLlmEnabled: !!runtimeInfo.normalizeLlmEnabled,
+        normalizeLlmBaseUrl: runtimeInfo.normalizeLlmBaseUrl || '',
+        normalizeLlmApiKeyMasked: runtimeInfo.normalizeLlmApiKeyMasked || '',
+        normalizeLlmModel: runtimeInfo.normalizeLlmModel || '',
       });
       setAdminIpAllowlistText(
         Array.isArray(runtimeInfo.adminIpAllowlist)
@@ -185,6 +195,31 @@ export default function Settings() {
       toast.error(err?.message || '保存失败');
     } finally {
       setSavingSecurity(false);
+    }
+  };
+
+  const saveNormalizeLlm = async () => {
+    setSavingNormalize(true);
+    try {
+      const payload: Record<string, unknown> = {
+        normalizeLlmEnabled: runtime.normalizeLlmEnabled,
+        normalizeLlmBaseUrl: runtime.normalizeLlmBaseUrl,
+        normalizeLlmModel: runtime.normalizeLlmModel,
+      };
+      if (normalizeLlmApiKey) {
+        payload.normalizeLlmApiKey = normalizeLlmApiKey;
+      }
+      const res = await api.updateRuntimeSettings(payload);
+      setRuntime((prev) => ({
+        ...prev,
+        normalizeLlmApiKeyMasked: res.normalizeLlmApiKeyMasked || prev.normalizeLlmApiKeyMasked,
+      }));
+      setNormalizeLlmApiKey('');
+      toast.success(tr('模型规范化设置已保存'));
+    } catch (err: any) {
+      toast.error(err?.message || '保存失败');
+    } finally {
+      setSavingNormalize(false);
     }
   };
 
@@ -425,6 +460,58 @@ export default function Settings() {
           <div style={{ marginTop: 12 }}>
             <button onClick={saveRouting} disabled={savingRouting} className="btn btn-primary">
               {savingRouting ? <><span className="spinner spinner-sm" style={{ borderTopColor: 'white', borderColor: 'rgba(255,255,255,0.3)' }} /> 保存中...</> : '保存路由策略'}
+            </button>
+          </div>
+        </div>
+
+        <div className="card animate-slide-up stagger-5" style={{ padding: 20 }}>
+          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>模型名称规范化</div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 12 }}>
+            开启后，在模型发现时调用大语言模型自动规范化模型名称（关闭时使用内置正则规则）。
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={!!runtime.normalizeLlmEnabled}
+              onChange={(e) => setRuntime((prev) => ({ ...prev, normalizeLlmEnabled: e.target.checked }))}
+            />
+            <span style={{ fontSize: 13 }}>启用 LLM 规范化</span>
+          </label>
+          {runtime.normalizeLlmEnabled && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 6 }}>Base URL</div>
+                <input
+                  value={runtime.normalizeLlmBaseUrl || ''}
+                  onChange={(e) => setRuntime((prev) => ({ ...prev, normalizeLlmBaseUrl: e.target.value }))}
+                  placeholder="https://api.openai.com"
+                  style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 6 }}>API Key</div>
+                <input
+                  type="password"
+                  value={normalizeLlmApiKey}
+                  onChange={(e) => setNormalizeLlmApiKey(e.target.value)}
+                  placeholder={runtime.normalizeLlmApiKeyMasked || '输入 API Key'}
+                  style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 6 }}>模型名称</div>
+                <input
+                  value={runtime.normalizeLlmModel || ''}
+                  onChange={(e) => setRuntime((prev) => ({ ...prev, normalizeLlmModel: e.target.value }))}
+                  placeholder="gpt-4o-mini"
+                  style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }}
+                />
+              </div>
+            </div>
+          )}
+          <div style={{ marginTop: 12 }}>
+            <button onClick={saveNormalizeLlm} disabled={savingNormalize} className="btn btn-primary">
+              {savingNormalize ? <><span className="spinner spinner-sm" style={{ borderTopColor: 'white', borderColor: 'rgba(255,255,255,0.3)' }} /> 保存中...</> : '保存规范化设置'}
             </button>
           </div>
         </div>
