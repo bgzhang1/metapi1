@@ -3,7 +3,7 @@ import { config } from '../config.js';
 
 const LLM_NORMALIZE_TIMEOUT_MS = 30_000;
 
-/** In-memory cache: lowercased raw name → LLM-normalised canonical name. */
+/** In-memory cache: lowercased raw name → LLM-normalized canonical name. */
 const cache = new Map<string, string>();
 
 export function isLlmNormalizerConfigured(): boolean {
@@ -12,8 +12,8 @@ export function isLlmNormalizerConfigured(): boolean {
 }
 
 /**
- * Look up an LLM-normalised name from the cache.
- * Returns `undefined` when the name has not been normalised by an LLM yet.
+ * Look up an LLM-normalized name from the cache.
+ * Returns `undefined` when the name has not been normalized by an LLM yet.
  */
 export function getCachedNormalizedName(name: string): string | undefined {
   return cache.get(name.trim().toLowerCase());
@@ -23,7 +23,7 @@ export function getCachedNormalizedName(name: string): string | undefined {
  * Batch-normalise a list of model names by calling a configured LLM.
  *
  * Returns a `Map<original, normalised>` for every name that was successfully
- * normalised.  Names already in the cache are returned instantly.
+ * normalized.  Names already in the cache are returned instantly.
  * If the LLM is not configured or the call fails, the returned map will
  * only contain previously-cached entries.
  */

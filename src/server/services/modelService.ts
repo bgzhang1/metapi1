@@ -21,7 +21,7 @@ function regexNormalize(name: string): string {
 /**
  * Normalize a model name to a canonical form.
  *
- * When an LLM normalizer is configured and has previously normalised this name
+ * When an LLM normalizer is configured and has previously normalized this name
  * the cached result is returned.  Otherwise falls back to the regex rule:
  * - trim whitespace
  * - lowercase
@@ -34,10 +34,10 @@ export function normalizeModelName(name: string): string {
 }
 
 /**
- * Batch-normalise a list of model names.
+ * Batch-normalize a list of model names.
  *
  * Attempts to use the configured LLM normalizer first.  Any names not covered
- * by the LLM response fall back to regex normalisation.
+ * by the LLM response fall back to regex normalization.
  */
 async function normalizeModels(models: string[]): Promise<string[]> {
   const valid = models.filter((m) => typeof m === 'string' && m.trim().length > 0);
