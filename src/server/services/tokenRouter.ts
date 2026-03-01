@@ -3,6 +3,7 @@ import { minimatch } from 'minimatch';
 import { db, schema } from '../db/index.js';
 import { config } from '../config.js';
 import { getCachedModelRoutingReferenceCost } from './modelPricingService.js';
+import { normalizeModelName } from './modelService.js';
 
 interface RouteMatch {
   route: typeof schema.tokenRoutes.$inferSelect;
@@ -455,13 +456,14 @@ export class TokenRouter {
   // --- Private methods ---
 
   private findRoute(model: string): RouteMatch | null {
+    const normalized = normalizeModelName(model);
     const routes = db.select().from(schema.tokenRoutes)
       .where(eq(schema.tokenRoutes.enabled, true)).all();
 
     // Find matching route by pattern
     const matchedRoute = routes.find((r) => {
-      if (r.modelPattern === model) return true; // exact match
-      return minimatch(model, r.modelPattern); // glob match
+      if (r.modelPattern === normalized) return true; // exact match
+      return minimatch(normalized, r.modelPattern); // glob match
     });
 
     if (!matchedRoute) return null;

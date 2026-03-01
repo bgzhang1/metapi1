@@ -12,8 +12,22 @@ function isSiteDisabled(status?: string | null): boolean {
   return (status || 'active') === 'disabled';
 }
 
+/**
+ * Normalize a model name to a canonical form:
+ * - trim whitespace
+ * - lowercase
+ * - replace hyphens between digits with dots (e.g. kimi-2-5 → kimi-2.5)
+ */
+export function normalizeModelName(name: string): string {
+  return name.trim().toLowerCase().replace(/(\d)-(\d)/g, '$1.$2');
+}
+
 function normalizeModels(models: string[]): string[] {
-  return Array.from(new Set(models.filter((model) => typeof model === 'string' && model.trim().length > 0)));
+  return Array.from(new Set(
+    models
+      .filter((model) => typeof model === 'string' && model.trim().length > 0)
+      .map(normalizeModelName),
+  ));
 }
 
 async function withTimeout<T>(fn: () => Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
@@ -203,7 +217,7 @@ export function rebuildTokenRoutesFromAvailability() {
 
   const modelTokens = new Map<string, Map<number, number>>();
   for (const row of tokenRows) {
-    const modelName = row.token_model_availability.modelName;
+    const modelName = normalizeModelName(row.token_model_availability.modelName);
     if (!modelTokens.has(modelName)) modelTokens.set(modelName, new Map<number, number>());
     modelTokens.get(modelName)!.set(row.account_tokens.id, row.accounts.id);
   }
